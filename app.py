@@ -4,31 +4,93 @@ import re
 import io
 import zipfile
 
-# إعدادات الصفحة
+# إعدادات الصفحة الأساسية
 st.set_page_config(
     page_title="Recruitment Privacy Shield", 
     page_icon="🛡️", 
     layout="centered"
 )
 
-# تصميم الواجهة الترحيبية (Intro & Welcome Banner)
+# حقن كود CSS لتعديل الاتجاه إلى اليمين (RTL) وتنسيق الواجهة
 st.markdown("""
-    <div style="background: linear-gradient(135deg, #1e293b, #0f172a); padding: 25px; border-radius: 12px; border: 1px solid #334155; text-align: center; margin-bottom: 25px;">
-        <h1 style="color: #38bdf8; margin-bottom: 10px; font-size: 24px;">🛡️ مرحباً بك في أداة حماية وتطهير السي فيهات</h1>
-        <p style="color: #94a3b8; font-size: 14px; margin: 0;">النظام الآمن لإزالة أرقام الهواتف، الإيميلات، والروابط تلقائياً قبل إرسالها للعملاء.</p>
+    <style>
+    /* تطبيق الاتجاه من اليمين للشمال على الصفحة بالكامل */
+    html, body, [data-testid="stAppViewContainer"] {
+        direction: rtl;
+        text-align: right;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    /* محاذاة القوائم والنصوص */
+    p, h1, h2, h3, h4, div, span {
+        text-align: right !important;
+        direction: rtl !important;
+    }
+
+    /* تحسين شكل البانر الترحيبي */
+    .welcome-banner {
+        background: linear-gradient(135deg, #1e293b, #0f172a);
+        padding: 25px;
+        border-radius: 12px;
+        border: 1px solid #334155;
+        text-align: center !important;
+        margin-bottom: 20px;
+    }
+    
+    .welcome-banner h2 {
+        color: #38bdf8 !important;
+        text-align: center !important;
+        margin-bottom: 8px;
+    }
+
+    .welcome-banner p {
+        color: #94a3b8 !important;
+        text-align: center !important;
+        font-size: 14px;
+    }
+
+    /* تنسيق كارت الخطوات */
+    .steps-card {
+        background-color: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        padding: 18px;
+        margin-bottom: 25px;
+    }
+
+    .step-item {
+        margin-bottom: 8px;
+        color: #cbd5e1;
+        font-size: 14px;
+    }
+
+    /* تعديل زر الرفع والمحاذاة */
+    [data-testid="stFileUploader"] {
+        direction: rtl;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# 1. البانر الترحيبي
+st.markdown("""
+    <div class="welcome-banner">
+        <h2>🛡️ مرحباً بك في أداة حماية وتطهير السي فيهات</h2>
+        <p>النظام الآمن لإزالة أرقام الهواتف، الإيميلات، والروابط تلقائياً قبل إرسالها للعملاء.</p>
     </div>
 """, unsafe_allow_html=True)
 
-# شرح سريع للخطوات
-st.markdown("### 📋 خطوات الاستخدام:")
-st.markdown("1. اختر ملفاً أو مجموعة من ملفات الـ PDF (السير الذاتية).")
-st.markdown("2. اضغط على زر **بدء التنظيف الجماعي**.")
-st.markdown("3. حمل الملفات النظيفة بضغطة زر واحدة مجدولة داخل ملف ZIP.")
+# 2. كارت خطوات الاستخدام المنظم
+st.markdown("""
+    <div class="steps-card">
+        <h4 style="color: #f8fafc; margin-top: 0; margin-bottom: 12px;">📋 خطوات الاستخدام:</h4>
+        <div class="step-item"><b>١.</b> قم برفع ملف واحد أو عدة ملفات PDF (السير الذاتية).</div>
+        <div class="step-item"><b>٢.</b> اضغط على زر <b>بدء التنظيف الجماعي</b>.</div>
+        <div class="step-item"><b>٣.</b> قم بتحميل جميع الملفات المنظفة داخل ملف ZIP مضغوط بضغطة زر.</div>
+    </div>
+""", unsafe_allow_html=True)
 
-st.markdown("---")
-
-# منطقة رفع الملفات
-uploaded_files = st.file_uploader("📂 رفـع ملفـات السي فـي (PDF)", type=["pdf"], accept_multiple_files=True)
+# 3. منطقة رفع الملفات
+uploaded_files = st.file_uploader("📂 رفع ملفات السي في (PDF)", type=["pdf"], accept_multiple_files=True)
 
 if uploaded_files:
     st.info(f"✨ تم اختيار {len(uploaded_files)} ملف جاهز للمعالجة.")
