@@ -11,10 +11,9 @@ st.set_page_config(
     layout="centered"
 )
 
-# تطبيق تنسيقات CSS لتحسين اتجاه النص والواجهة
+# تطبيق تنسيقات CSS لتحسين المحاذاة والواجهة
 st.markdown("""
     <style>
-    /* محاذاة الصفحة بالكامل لليمين */
     html, body, [data-testid="stAppViewContainer"] {
         direction: rtl;
         text-align: right;
@@ -26,7 +25,6 @@ st.markdown("""
         direction: rtl !important;
     }
 
-    /* البانر الترحيبي الخاص بشركة oldorado */
     .welcome-banner {
         background: linear-gradient(135deg, #0f172a, #1e293b);
         padding: 30px 20px;
@@ -51,7 +49,6 @@ st.markdown("""
         margin: 0;
     }
 
-    /* كارت خطوات الاستخدام */
     .steps-card {
         background-color: #1e293b;
         border: 1px solid #334155;
@@ -72,7 +69,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 1. البانر الترحيبي باسم oldorado (يمكنك تعديل النصوص هنا حسب الخيار المفضل لك)
+# 1. البانر الترحيبي
 st.markdown("""
     <div class="welcome-banner">
         <h1>oldorado | CV Privacy Shield</h1>
@@ -80,78 +77,96 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# 2. خطوات الاستخدام
+# 2. كارت الشرح
 st.markdown("""
     <div class="steps-card">
         <h4 style="color: #f8fafc; margin-top: 0; margin-bottom: 14px;">📋 طريقة الاستخدام:</h4>
-        <div class="step-item"><b>١.</b> قم برفع ملف واحد أو مجموعة من ملفات الـ CVs بصيغة PDF.</div>
+        <div class="step-item"><b>١.</b> قم برفع ملف واحد أو عدة ملفات CVs بصيغة PDF.</div>
         <div class="step-item"><b>٢.</b> اضغط على زر <b>معالجة وتنظيف الـ CVs</b>.</div>
-        <div class="step-item"><b>٣.</b> قم بتنزيل الملفات المعالجة بضغطة زر داخل ملف ZIP واحد.</div>
+        <div class="step-item"><b>٣.</b> تحمِيل مباشر للملف المفرد بصيغة PDF، أو ملف ZIP مضغوط للمجموعة.</div>
     </div>
 """, unsafe_allow_html=True)
 
-# 3. منطقة رفع الملفات
+# 3. رفع الملفات
 uploaded_files = st.file_uploader("📂 رفع ملفات الـ CVs (PDF)", type=["pdf"], accept_multiple_files=True)
 
+# دالة معالجة الـ PDF (لتجنب تكرار الكود)
+def redact_pdf(file_bytes):
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    
+    email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+    phone_pattern = r'(?:\+\d{1,3}[\s-]?)?\(?\d{2,4}\)?[\s-]?\d{3,4}[\s-]?\d{4,}'
+    url_pattern = r'(https?://\S+|www\.\S+|linkedin\.com/\S+|github\.com/\S+)'
+    keywords = ["Address", "Location", "Street", "City", "العنوان", "المحافظة", "المدينة", "الشارع", "محل الإقامة"]
+
+    for page in doc:
+        text = page.get_text("text")
+        rects = []
+        
+        for email in re.findall(email_pattern, text):
+            rects.extend(page.search_for(email))
+        for url in re.findall(url_pattern, text):
+            rects.extend(page.search_for(url))
+        for phone in re.findall(phone_pattern, text):
+            match_str = phone[0] if isinstance(phone, tuple) else phone
+            clean_phone = match_str.strip()
+            if len(re.sub(r'\D', '', clean_phone)) >= 7:
+                rects.extend(page.search_for(clean_phone))
+        for kw in keywords:
+            for rect in page.search_for(kw):
+                extended = fitz.Rect(rect.x0 - 50, rect.y0 - 5, rect.x1 + 300, rect.y1 + 5)
+                rects.append(extended)
+
+        for rect in rects:
+            page.add_redact_annot(rect, fill=(0, 0, 0))
+        page.apply_redactions()
+
+    output_pdf = io.BytesIO()
+    doc.save(output_pdf)
+    doc.close()
+    return output_pdf.getvalue()
+
+
 if uploaded_files:
-    st.info(f"✨ تم اختيار {len(uploaded_files)} ملف جاهز للمعالجة.")
+    num_files = len(uploaded_files)
+    st.info(f"✨ تم اختيار {num_files} ملف جاهز للمعالجة.")
     
     if st.button("🚀 معالجة وتنظيف الـ CVs", type="primary", use_container_width=True):
         with st.spinner("⏳ جاري فحص الملفات وإخفاء بيانات التواصل... برجاء الانتظار"):
             try:
-                zip_buffer = io.BytesIO()
-                
-                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                # حالة 1: ملف واحد فقط (Single File Processing)
+                if num_files == 1:
+                    single_file = uploaded_files[0]
+                    cleaned_data = redact_pdf(single_file.read())
                     
-                    email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-                    phone_pattern = r'(?:\+\d{1,3}[\s-]?)?\(?\d{2,4}\)?[\s-]?\d{3,4}[\s-]?\d{4,}'
-                    url_pattern = r'(https?://\S+|www\.\S+|linkedin\.com/\S+|github\.com/\S+)'
-                    keywords = ["Address", "Location", "Street", "City", "العنوان", "المحافظة", "المدينة", "الشارع", "محل الإقامة"]
-
-                    for uploaded_file in uploaded_files:
-                        doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-                        
-                        for page in doc:
-                            text = page.get_text("text")
-                            rects = []
-                            
-                            # استخراج إحداثيات الإيميلات، الروابط، التليفونات، والعناوين
-                            for email in re.findall(email_pattern, text):
-                                rects.extend(page.search_for(email))
-                            for url in re.findall(url_pattern, text):
-                                rects.extend(page.search_for(url))
-                            for phone in re.findall(phone_pattern, text):
-                                match_str = phone[0] if isinstance(phone, tuple) else phone
-                                clean_phone = match_str.strip()
-                                if len(re.sub(r'\D', '', clean_phone)) >= 7:
-                                    rects.extend(page.search_for(clean_phone))
-                            for kw in keywords:
-                                for rect in page.search_for(kw):
-                                    extended = fitz.Rect(rect.x0 - 50, rect.y0 - 5, rect.x1 + 300, rect.y1 + 5)
-                                    rects.append(extended)
-
-                            # تطبيق التظليل
-                            for rect in rects:
-                                page.add_redact_annot(rect, fill=(0, 0, 0))
-                            page.apply_redactions()
-
-                        output_pdf = io.BytesIO()
-                        doc.save(output_pdf)
-                        doc.close()
-                        
-                        clean_filename = f"Cleaned_{uploaded_file.name}"
-                        zip_file.writestr(clean_filename, output_pdf.getvalue())
-
-                zip_buffer.seek(0)
-                st.success("🎉 تم معالجة وتطهير كافة الـ CVs بنجاح!")
+                    st.success("🎉 تم معالجة الـ CV بنجاح!")
+                    st.download_button(
+                        label="⬇️ تحميل الـ CV المعالج (PDF)",
+                        data=cleaned_data,
+                        file_name=f"Cleaned_{single_file.name}",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
                 
-                st.download_button(
-                    label="⬇️ تحميل الـ CVs المعالجة (ZIP)",
-                    data=zip_buffer,
-                    file_name="oldorado_Cleaned_CVs.zip",
-                    mime="application/zip",
-                    use_container_width=True
-                )
-                
+                # حالة 2: أكتر من ملف (Batch Zip Processing)
+                else:
+                    zip_buffer = io.BytesIO()
+                    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                        for uploaded_file in uploaded_files:
+                            cleaned_data = redact_pdf(uploaded_file.read())
+                            clean_filename = f"Cleaned_{uploaded_file.name}"
+                            zip_file.writestr(clean_filename, cleaned_data)
+
+                    zip_buffer.seek(0)
+                    st.success("🎉 تم معالجة كافة الـ CVs بنجاح!")
+                    
+                    st.download_button(
+                        label="⬇️ تحميل كافة الـ CVs المعالجة (ZIP)",
+                        data=zip_buffer,
+                        file_name="oldorado_Cleaned_CVs.zip",
+                        mime="application/zip",
+                        use_container_width=True
+                    )
+                    
             except Exception as e:
                 st.error(f"حدث خطأ أثناء المعالجة البرمجية: {e}")
