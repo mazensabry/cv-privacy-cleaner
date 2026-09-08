@@ -69,11 +69,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 1. البانر الترحيبي
+# 1. البانر الترحيبي بالجملة الجديدة
 st.markdown("""
     <div class="welcome-banner">
         <h1>oldorado | CV Privacy Shield</h1>
-        <p>النظام الذكي لإزالة بيانات التواصل من الـ CVs تلقائياً قبل إرسالها للعملاء</p>
+        <p>إزالة بيانات التواصل من الـ CVs قبل إرسالها لأصحاب العمل</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -90,7 +90,7 @@ st.markdown("""
 # 3. رفع الملفات
 uploaded_files = st.file_uploader("📂 رفع ملفات الـ CVs (PDF)", type=["pdf"], accept_multiple_files=True)
 
-# دالة معالجة الـ PDF (لتجنب تكرار الكود)
+# دالة معالجة الـ PDF
 def redact_pdf(file_bytes):
     doc = fitz.open(stream=file_bytes, filetype="pdf")
     
@@ -134,7 +134,7 @@ if uploaded_files:
     if st.button("🚀 معالجة وتنظيف الـ CVs", type="primary", use_container_width=True):
         with st.spinner("⏳ جاري فحص الملفات وإخفاء بيانات التواصل... برجاء الانتظار"):
             try:
-                # حالة 1: ملف واحد فقط (Single File Processing)
+                # حالة ملف واحد فقط
                 if num_files == 1:
                     single_file = uploaded_files[0]
                     cleaned_data = redact_pdf(single_file.read())
@@ -148,7 +148,7 @@ if uploaded_files:
                         use_container_width=True
                     )
                 
-                # حالة 2: أكتر من ملف (Batch Zip Processing)
+                # حالة أكثر من ملف
                 else:
                     zip_buffer = io.BytesIO()
                     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
